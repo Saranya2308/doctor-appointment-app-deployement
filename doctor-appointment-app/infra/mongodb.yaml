@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: MongoDB EC2 instance in private subnet with secure access
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: VPC ID for the MongoDB instance
+  SubnetId:
+    Type: String
+    Description: Private Subnet ID to launch MongoDB instance
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 KeyPair for SSH access
+
+Resources:
+  MongoSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow MongoDB access from inside the VPC
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 27017
+          ToPort: 27017
+          CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: mongodb-sg
+
+  MongoInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0c02fb55956c7d316  # Amazon Linux 2 AMI (for us-east-1)
+      KeyName: !Ref KeyName
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref MongoSecurityGroup
+      Tags:
+        - Key: Name
+          Value: mongodb-ec2
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          amazon-linux-extras enable mongodb4.0
+          yum install -y mongodb-org
+          systemctl start mongod
+          systemctl enable mongod
